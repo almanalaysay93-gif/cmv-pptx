@@ -1,7 +1,7 @@
 (() => {
   // Reduced motion: hold the particle layer still.
   const particles = document.querySelector('.particles');
-  if (particles && window.matchMedia('(prefers-reduced-motion: reduce)').matches) particles.pause();
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) document.querySelectorAll('.particles, .virus-bg').forEach((v) => v.pause());
   // Split each title into words, so CSS can reveal them one by one.
   document.querySelectorAll('.title').forEach((el) => {
     const words = el.textContent.trim().split(/\s+/);
