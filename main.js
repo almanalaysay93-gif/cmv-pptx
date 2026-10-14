@@ -26,8 +26,14 @@
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 
   // Phones and reduced motion read as a normal page; no pinning or key steps.
-  const flatQuery = window.matchMedia('(max-width: 760px), (prefers-reduced-motion: reduce)');
+  // Phones, portrait tablets and reduced motion read as a normal page; no pinning or key steps.
+  const flatQuery = window.matchMedia('(max-width: 1023px), (orientation: portrait), (prefers-reduced-motion: reduce)');
+  // The layout mode is set once at load. Rotating a tablet or resizing across the breakpoint reloads the page.
+  flatQuery.addEventListener('change', () => location.reload());
   if (flatQuery.matches) return;
+
+  // The particle video loads only for the pinned deck, to save data on phones.
+  if (particles && particles.dataset.src) particles.src = particles.dataset.src;
 
   // Galleries with four or more photos spin around as a ring.
   document.querySelectorAll('.gallery').forEach((gallery) => {
@@ -292,6 +298,22 @@
     request();
   }, { passive: true });
   window.addEventListener('resize', request);
+  // Safety net: if the text in a panel is taller than the panel, scale that panel's text down until it fits.
+  function fitPanels() {
+    document.querySelectorAll('.slide .head, .slide .text').forEach((panel) => {
+      let fit = 1;
+      panel.style.setProperty('--fit', '1');
+      while (panel.scrollHeight > panel.clientHeight + 1 && fit > 0.6) {
+        fit -= 0.04;
+        panel.style.setProperty('--fit', fit.toFixed(2));
+      }
+    });
+  }
+  fitPanels();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitPanels);
+  window.addEventListener('load', fitPanels);
+  window.addEventListener('resize', fitPanels);
+
   // Deep link for review: index.html#slide=N opens slide N.
   const deep = location.hash.match(/slide=(\d+)/);
   if (deep) window.scrollTo(0, topOf(clamp(parseInt(deep[1], 10) - 1, 0, N - 1)));
