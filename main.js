@@ -26,11 +26,47 @@
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
 
   // Phones and reduced motion read as a normal page; no pinning or key steps.
+  // Numbers that roll up to their value when their slide arrives.
+  // A value like "36/40" rolls its first number and keeps "/40" fixed.
+  const rollers = Array.from(document.querySelectorAll('.num-cell, .bars b, .cards-3 b, .big .num, .stat-cards b'))
+    .map((el) => {
+      const m = el.textContent.trim().match(/^(\d+(?:\.(\d+))?)(%|\/\d+)?$/);
+      if (!m) return null;
+      return { el, to: parseFloat(m[1]), dec: (m[2] || '').length, suffix: m[3] || '', slide: el.closest('.slide') };
+    })
+    .filter(Boolean);
+
+  function roll(r) {
+    const ease = (t) => 1 - Math.pow(1 - t, 3);
+    cancelAnimationFrame(r.frame);
+    const start = performance.now();
+    const step = (now) => {
+      const t = clamp((now - start) / 1400);
+      r.el.textContent = (r.to * ease(t)).toFixed(r.dec) + r.suffix;
+      if (t < 1) r.frame = requestAnimationFrame(step);
+    };
+    step(start);
+  }
+  const rollSlide = (slide) => rollers.filter((r) => r.slide === slide).forEach(roll);
+
   // Phones, portrait tablets and reduced motion read as a normal page; no pinning or key steps.
   const flatQuery = window.matchMedia('(max-width: 1023px), (orientation: portrait), (prefers-reduced-motion: reduce)');
   // The layout mode is set once at load. Rotating a tablet or resizing across the breakpoint reloads the page.
   flatQuery.addEventListener('change', () => location.reload());
-  if (flatQuery.matches) return;
+  if (flatQuery.matches) {
+    // Scrolling layout: each number rolls when it scrolls into view. Reduced motion keeps the final values.
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && 'IntersectionObserver' in window) {
+      const seen = new IntersectionObserver((entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const r = rollers.find((x) => x.el === entry.target);
+          if (r) roll(r);
+        });
+      }, { threshold: 0.6 });
+      rollers.forEach((r) => seen.observe(r.el));
+    }
+    return;
+  }
 
   // The particle video loads only for the pinned deck, to save data on phones.
   if (particles && particles.dataset.src) particles.src = particles.dataset.src;
@@ -87,29 +123,6 @@
     rows: Array.from(slide.querySelectorAll('.glass-table tbody tr')),
     bars: Array.from(slide.querySelectorAll('[data-bar]')),
   }));
-
-  // Numbers that roll up to their value when their slide arrives.
-  const rollers = Array.from(document.querySelectorAll('.num-cell, .bars b, .cards-3 b, .big .num'))
-    .map((el) => {
-      const m = el.textContent.trim().match(/^(\d+(?:\.(\d+))?)(%?)$/);
-      if (!m) return null;
-      return { el, to: parseFloat(m[1]), dec: (m[2] || '').length, suffix: m[3], slide: el.closest('.slide') };
-    })
-    .filter(Boolean);
-
-  function rollSlide(slide) {
-    const ease = (t) => 1 - Math.pow(1 - t, 3);
-    rollers.filter((r) => r.slide === slide).forEach((r) => {
-      cancelAnimationFrame(r.frame);
-      const start = performance.now();
-      const step = (now) => {
-        const t = clamp((now - start) / 1400);
-        r.el.textContent = (r.to * ease(t)).toFixed(r.dec) + r.suffix;
-        if (t < 1) r.frame = requestAnimationFrame(step);
-      };
-      step(start);
-    });
-  }
 
   // Pointer parallax: -1..1 across the viewport.
   let px = 0;

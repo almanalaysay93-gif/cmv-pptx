@@ -676,3 +676,6 @@ body {
 }
 /* Phone table cards: the caption sits above the cards as a full-width line */
 @media (max-width: 640px) { .glass-table caption { display: block; padding: .5rem .25rem .75rem; } }
+
+/* Rolling numbers keep a steady width while they count */
+.stat-cards b, .cards-3 b, .num-cell, .bars b { font-variant-numeric: tabular-nums; }
